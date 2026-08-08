@@ -1,5 +1,7 @@
 package com.devicefy.backend.controller;
 
+import com.devicefy.backend.dto.ActualizarDespliegueRequest;
+import com.devicefy.backend.dto.AsignarDesplieguesRequest;
 import com.devicefy.backend.dto.DespliegueEquipoResponse;
 import com.devicefy.backend.dto.DespliegueResponse;
 import com.devicefy.backend.dto.ImportacionResult;
@@ -10,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -44,5 +48,17 @@ public class ImportacionController {
     @GetMapping("/despliegues/{id}/equipos")
     public List<DespliegueEquipoResponse> listarEquipos(@PathVariable Long id) {
         return importacionService.listarEquipos(id);
+    }
+
+    @PutMapping("/despliegues/{id}")
+    public DespliegueResponse actualizar(@PathVariable Long id,
+                                         @RequestBody ActualizarDespliegueRequest request) {
+        return importacionService.actualizar(id, request);
+    }
+
+    @PutMapping("/despliegues/{id}/tecnicos")
+    public DespliegueResponse asignarTecnicos(@PathVariable Long id,
+                                              @RequestBody AsignarDesplieguesRequest request) {
+        return importacionService.asignarTecnicos(id, request);
     }
 }

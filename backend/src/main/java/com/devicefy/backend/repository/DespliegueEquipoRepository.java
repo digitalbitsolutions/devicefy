@@ -48,4 +48,22 @@ public interface DespliegueEquipoRepository extends JpaRepository<DespliegueEqui
             where de.id = :id
             """)
     Optional<DespliegueEquipo> findDetalleById(@Param("id") Long id);
+
+    @Query("""
+            select de.tecnico.id, count(de)
+            from DespliegueEquipo de
+            where de.tecnico.id is not null
+            group by de.tecnico.id
+            """)
+    List<Object[]> contarAsignadosPorTecnico();
+
+    @Query("""
+            select de.tecnico.id, count(de)
+            from DespliegueEquipo de
+            where de.tecnico.id is not null and de.estado = 'HECHO'
+            group by de.tecnico.id
+            """)
+    List<Object[]> contarHechosPorTecnico();
+
+    long countByDespliegueIdInAndTecnicoIdIsNull(Collection<Long> despliegueIds);
 }

@@ -41,6 +41,7 @@ public class EquipoController {
                                        @RequestParam(required = false) Long centroId,
                                        @RequestParam(required = false) Boolean activo,
                                        @RequestParam(required = false) Long tecnicoId,
+                                       @RequestParam(required = false) Long despliegueId,
                                        @AuthenticationPrincipal UserDetails userDetails) {
         Usuario usuario = usuarioRepository.findByUsername(userDetails.getUsername()).orElseThrow();
         boolean esAdmin = usuario.getRoles().stream().anyMatch(r -> r.getNombre() == RolNombre.ADMIN);
@@ -49,7 +50,7 @@ public class EquipoController {
             tecnicoFiltro = usuario.getId();
         }
         return equipoService.listar(hostname, numeroSerie, etiquetaPatrimonial, estado, centroId, activo,
-                tecnicoFiltro, null);
+                tecnicoFiltro, despliegueId, null);
     }
 
     @GetMapping("/{id}")

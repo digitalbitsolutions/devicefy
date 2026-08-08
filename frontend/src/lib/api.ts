@@ -178,6 +178,7 @@ export interface EquipoFiltros {
   centroId?: number
   activo?: boolean
   tecnicoId?: number
+  despliegueId?: number
 }
 
 export const authApi = {
@@ -219,12 +220,21 @@ export const equiposApi = {
 export interface Despliegue {
   id: number
   nombre: string
+  provincia?: string | null
   ficheroNombre?: string | null
   fechaImportacion?: string | null
   estado: string
   totalEquipos: number
   enProceso: number
   hechos: number
+  tecnicoIds: number[]
+  tecnicoNombres: string[]
+}
+
+export interface ActualizarDespliegueRequest {
+  nombre?: string
+  provincia?: string
+  estado?: string
 }
 
 export interface ErrorImportacion {
@@ -277,6 +287,12 @@ export const importacionesApi = {
   listarDespliegues: () => api.get<Despliegue[]>('/importaciones/despliegues').then((r) => r.data),
   listarEquipos: (id: number) =>
     api.get<DespliegueEquipo[]>(`/importaciones/despliegues/${id}/equipos`).then((r) => r.data),
+  actualizar: (id: number, body: ActualizarDespliegueRequest) =>
+    api.put<Despliegue>(`/importaciones/despliegues/${id}`, body).then((r) => r.data),
+  asignarTecnicos: (id: number, usuarioIds: number[]) =>
+    api
+      .put<Despliegue>(`/importaciones/despliegues/${id}/tecnicos`, { despliegueIds: usuarioIds })
+      .then((r) => r.data),
 }
 
 
@@ -289,10 +305,13 @@ export interface Usuario {
   roles: string[]
   centroIds: number[]
   centroNombres: string[]
+  despliegueIds: number[]
+  despliegueNombres: string[]
 }
 
 export const usuariosApi = {
   listar: () => api.get<Usuario[]>('/usuarios').then((r) => r.data),
+  obtener: (id: number) => api.get<Usuario>(`/usuarios/${id}`).then((r) => r.data),
   crear: (body: {
     username: string
     password: string
@@ -300,7 +319,59 @@ export const usuariosApi = {
     email?: string
     rol?: string
   }) => api.post<Usuario>('/usuarios', body).then((r) => r.data),
+  actualizar: (
+    id: number,
+    body: { nombreCompleto: string; email?: string; activo?: boolean; rol?: string },
+  ) => api.put<Usuario>(`/usuarios/${id}`, body).then((r) => r.data),
+  eliminar: (id: number) => api.delete(`/usuarios/${id}`),
   asignarCentros: (id: number, centroIds: number[]) =>
     api.put<Usuario>(`/usuarios/${id}/centros`, { centroIds }).then((r) => r.data),
+  asignarDespliegues: (id: number, despliegueIds: number[]) =>
+    api.put<Usuario>(`/usuarios/${id}/despliegues`, { despliegueIds }).then((r) => r.data),
   misCentros: () => api.get<Centro[]>('/usuarios/me/centros').then((r) => r.data),
+}
+
+export interface DashboardKpis {
+  totalProyectos: number
+  totalCentros: number
+  totalUbicaciones: number
+  totalEquipos: number
+  totalUsuarios: number
+  equiposPendientes: number
+  equiposEnProceso: number
+  equiposFinalizados: number
+}
+
+export interface DashboardConteo {
+  nombre: string
+  valor: number
+}
+
+export interface DashboardProgresoProyecto {
+  id: number
+  nombre: string
+  provincia?: string | null
+  total: number
+  enProceso: number
+  hechos: number
+}
+
+export interface DashboardCargaTecnico {
+  id: number
+  nombre: string
+  asignados: number
+  finalizados: number
+}
+
+export interface DashboardData {
+  kpis: DashboardKpis
+  equiposPorEstado: DashboardConteo[]
+  equiposPorTipo: DashboardConteo[]
+  equiposPorCentro: DashboardConteo[]
+  progresoProyectos: DashboardProgresoProyecto[]
+  cargaTecnicos: DashboardCargaTecnico[]
+}
+
+export const dashboardApi = {
+  resumen: () => api.get<DashboardData>('/dashboard').then((r) => r.data),
 }

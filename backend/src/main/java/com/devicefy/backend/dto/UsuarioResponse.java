@@ -21,4 +21,6 @@ public class UsuarioResponse {
     private List<String> roles;
     private List<Long> centroIds;
     private List<String> centroNombres;
+    private List<Long> despliegueIds;
+    private List<String> despliegueNombres;
 }

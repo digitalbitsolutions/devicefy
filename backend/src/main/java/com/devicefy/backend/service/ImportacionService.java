@@ -1,5 +1,7 @@
 package com.devicefy.backend.service;
 
+import com.devicefy.backend.dto.ActualizarDespliegueRequest;
+import com.devicefy.backend.dto.AsignarDesplieguesRequest;
 import com.devicefy.backend.dto.DespliegueEquipoResponse;
 import com.devicefy.backend.dto.DespliegueResponse;
 import com.devicefy.backend.dto.ImportacionResult;
@@ -14,4 +16,8 @@ public interface ImportacionService {
     List<DespliegueResponse> listarDespliegues();
 
     List<DespliegueEquipoResponse> listarEquipos(Long despliegueId);
+
+    DespliegueResponse actualizar(Long despliegueId, ActualizarDespliegueRequest request);
+
+    DespliegueResponse asignarTecnicos(Long despliegueId, AsignarDesplieguesRequest request);
 }

@@ -49,7 +49,7 @@ public class EquipoServiceImpl implements EquipoService {
     @Transactional(readOnly = true)
     public List<EquipoResponse> listar(String hostname, String numeroSerie, String etiquetaPatrimonial,
                                        String estado, Long centroId, Boolean activo, Long tecnicoId,
-                                       List<Long> centrosPermitidos) {
+                                       Long despliegueId, List<Long> centrosPermitidos) {
         if (centrosPermitidos != null && centrosPermitidos.isEmpty()) {
             return List.of();
         }
@@ -78,6 +78,12 @@ public class EquipoServiceImpl implements EquipoService {
                 return root.get("id").in(sub);
             });
         }
+        if (despliegueId != null) {
+            spec = spec.and((root, query, cb) -> {
+                jakarta.persistence.criteria.Subquery<Long> sub = subqueryEquiposDelProyecto(cb, query, despliegueId);
+                return root.get("id").in(sub);
+            });
+        }
         if (centrosPermitidos != null) {
             spec = spec.and((root, query, cb) -> root.get("centro").get("id").in(centrosPermitidos));
         }
@@ -91,6 +97,16 @@ public class EquipoServiceImpl implements EquipoService {
         jakarta.persistence.criteria.Root<DespliegueEquipo> de = sub.from(DespliegueEquipo.class);
         sub.select(de.get("equipo").get("id"));
         sub.where(cb.equal(de.get("tecnico").get("id"), tecnicoId));
+        return sub;
+    }
+
+    private jakarta.persistence.criteria.Subquery<Long> subqueryEquiposDelProyecto(
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            jakarta.persistence.criteria.CriteriaQuery<?> query, Long despliegueId) {
+        jakarta.persistence.criteria.Subquery<Long> sub = query.subquery(Long.class);
+        jakarta.persistence.criteria.Root<DespliegueEquipo> de = sub.from(DespliegueEquipo.class);
+        sub.select(de.get("equipo").get("id"));
+        sub.where(cb.equal(de.get("despliegue").get("id"), despliegueId));
         return sub;
     }
 

@@ -52,4 +52,7 @@ public class Usuario extends BaseEntity {
             joinColumns = @JoinColumn(name = "usuario_id"),
             inverseJoinColumns = @JoinColumn(name = "centro_id"))
     private Set<Centro> centros = new HashSet<>();
+
+    @ManyToMany(mappedBy = "tecnicos")
+    private Set<Despliegue> despliegues = new HashSet<>();
 }

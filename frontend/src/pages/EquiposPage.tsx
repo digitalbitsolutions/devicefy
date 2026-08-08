@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 import { Add, Delete, Edit } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
-import { authApi, centrosApi, equiposApi, ubicacionesApi, type Equipo, type RedConfigRequest } from '../lib/api'
+import { authApi, centrosApi, equiposApi, importacionesApi, ubicacionesApi, type Equipo, type RedConfigRequest } from '../lib/api'
 import { ESTADOS_EQUIPO, TIPOS_ASIGNACION_RED, TIPOS_EQUIPO } from '../lib/constants'
 
 interface FormValues {
@@ -61,7 +61,7 @@ function errorMessage(e: unknown): string {
 
 export default function EquiposPage() {
   const queryClient = useQueryClient()
-  const [filtro, setFiltro] = useState({ hostname: '', estado: '', centroId: '', activo: 'true' })
+  const [filtro, setFiltro] = useState({ hostname: '', estado: '', centroId: '', despliegueId: '', activo: 'true' })
   const [open, setOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [red, setRed] = useState<RedConfigRequest>(redVacia())
@@ -90,6 +90,11 @@ export default function EquiposPage() {
 
   const { data: centros = [] } = useQuery({ queryKey: ['centros'], queryFn: centrosApi.list })
 
+  const { data: despliegues = [] } = useQuery({
+    queryKey: ['despliegues'],
+    queryFn: importacionesApi.listarDespliegues,
+  })
+
   const { data: authMe } = useQuery({ queryKey: ['authMe'], queryFn: authApi.me })
   const esAdmin = authMe?.authorities.includes('ROLE_ADMIN') ?? false
   const { data: ubicaciones = [] } = useQuery({
@@ -109,6 +114,7 @@ export default function EquiposPage() {
         hostname: filtro.hostname || undefined,
         estado: filtro.estado || undefined,
         centroId: filtro.centroId ? Number(filtro.centroId) : undefined,
+        despliegueId: filtro.despliegueId ? Number(filtro.despliegueId) : undefined,
         activo: filtro.activo === '' ? undefined : filtro.activo === 'true',
       }),
   })
@@ -257,6 +263,23 @@ export default function EquiposPage() {
             </MenuItem>
           ))}
         </TextField>
+        {esAdmin && (
+          <TextField
+            select
+            label="Proyecto"
+            size="small"
+            value={filtro.despliegueId}
+            onChange={(e) => setFiltro((f) => ({ ...f, despliegueId: e.target.value }))}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {despliegues.map((d) => (
+              <MenuItem key={d.id} value={String(d.id)}>
+                {d.nombre}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <TextField
           select
           label="Activo"

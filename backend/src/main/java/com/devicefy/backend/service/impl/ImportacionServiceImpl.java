@@ -8,6 +8,8 @@ import com.devicefy.backend.domain.Equipo;
 import com.devicefy.backend.domain.RedConfig;
 import com.devicefy.backend.domain.Ubicacion;
 import com.devicefy.backend.domain.enums.TipoAsignacionRed;
+import com.devicefy.backend.dto.ActualizarDespliegueRequest;
+import com.devicefy.backend.dto.AsignarDesplieguesRequest;
 import com.devicefy.backend.dto.DespliegueEquipoResponse;
 import com.devicefy.backend.dto.DespliegueResponse;
 import com.devicefy.backend.dto.ErrorImportacion;
@@ -63,6 +65,7 @@ public class ImportacionServiceImpl implements ImportacionService {
     private final UbicacionRepository ubicacionRepository;
     private final EquipoRepository equipoRepository;
     private final RedConfigRepository redConfigRepository;
+    private final com.devicefy.backend.repository.UsuarioRepository usuarioRepository;
 
     @Override
     @Transactional
@@ -81,11 +84,13 @@ public class ImportacionServiceImpl implements ImportacionService {
     @Transactional(readOnly = true)
     public List<DespliegueResponse> listarDespliegues() {
         return despliegueRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
-                .map(d -> new DespliegueResponse(d.getId(), d.getNombre(), d.getFicheroNombre(),
-                        d.getFechaImportacion(), d.getEstado(),
+                .map(d -> new DespliegueResponse(d.getId(), d.getNombre(), d.getProvincia(),
+                        d.getFicheroNombre(), d.getFechaImportacion(), d.getEstado(),
                         despliegueEquipoRepository.countByDespliegueId(d.getId()),
                         despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "EN_PROCESO"),
-                        despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "HECHO")))
+                        despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "HECHO"),
+                        d.getTecnicos().stream().map(u -> u.getId()).sorted().toList(),
+                        d.getTecnicos().stream().map(u -> u.getNombreCompleto()).sorted().toList()))
                 .toList();
     }
 
@@ -95,6 +100,50 @@ public class ImportacionServiceImpl implements ImportacionService {
         return despliegueEquipoRepository.findByDespliegueIdOrderByHostnameActualAsc(despliegueId).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public DespliegueResponse actualizar(Long despliegueId, ActualizarDespliegueRequest request) {
+        Despliegue d = buscar(despliegueId);
+        if (request.getNombre() != null && !request.getNombre().isBlank()) {
+            d.setNombre(request.getNombre().trim());
+        }
+        if (request.getProvincia() != null) {
+            d.setProvincia(request.getProvincia().isBlank() ? null : request.getProvincia().trim());
+        }
+        if (request.getEstado() != null && !request.getEstado().isBlank()) {
+            d.setEstado(request.getEstado().trim());
+        }
+        return toDespliegueResponse(despliegueRepository.save(d));
+    }
+
+    @Override
+    @Transactional
+    public DespliegueResponse asignarTecnicos(Long despliegueId, AsignarDesplieguesRequest request) {
+        Despliegue d = buscar(despliegueId);
+        d.getTecnicos().clear();
+        if (request.getDespliegueIds() != null) {
+            for (Long uid : request.getDespliegueIds()) {
+                usuarioRepository.findById(uid).ifPresent(d.getTecnicos()::add);
+            }
+        }
+        return toDespliegueResponse(despliegueRepository.save(d));
+    }
+
+    private Despliegue buscar(Long id) {
+        return despliegueRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proyecto no encontrado"));
+    }
+
+    private DespliegueResponse toDespliegueResponse(Despliegue d) {
+        return new DespliegueResponse(d.getId(), d.getNombre(), d.getProvincia(),
+                d.getFicheroNombre(), d.getFechaImportacion(), d.getEstado(),
+                despliegueEquipoRepository.countByDespliegueId(d.getId()),
+                despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "EN_PROCESO"),
+                despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "HECHO"),
+                d.getTecnicos().stream().map(u -> u.getId()).sorted().toList(),
+                d.getTecnicos().stream().map(u -> u.getNombreCompleto()).sorted().toList());
     }
 
     private ImportacionResult importarLibro(String nombreDespliegue, String nombreFichero, Workbook wb) {
