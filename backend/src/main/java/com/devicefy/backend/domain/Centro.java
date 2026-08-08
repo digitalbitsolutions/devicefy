@@ -2,6 +2,10 @@ package com.devicefy.backend.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -9,7 +13,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -32,6 +38,13 @@ public class Centro extends BaseEntity {
 
     @Column(name = "activo", nullable = false)
     private Boolean activo = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entidad_id")
+    private Entidad entidad;
+
+    @ManyToMany(mappedBy = "centros")
+    private Set<Usuario> tecnicos = new HashSet<>();
 
     @OneToMany(mappedBy = "centro")
     private List<Ubicacion> ubicaciones = new ArrayList<>();

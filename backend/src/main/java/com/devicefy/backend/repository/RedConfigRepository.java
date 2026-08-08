@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface RedConfigRepository extends JpaRepository<RedConfig, Long> {
 
     Optional<RedConfig> findByEquipoId(Long equipoId);
+
+    boolean existsByIp(String ip);
 }

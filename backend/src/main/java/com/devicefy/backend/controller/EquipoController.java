@@ -1,11 +1,17 @@
 package com.devicefy.backend.controller;
 
+import com.devicefy.backend.domain.Usuario;
+import com.devicefy.backend.domain.enums.RolNombre;
 import com.devicefy.backend.dto.EquipoRequest;
 import com.devicefy.backend.dto.EquipoResponse;
+import com.devicefy.backend.repository.UsuarioRepository;
 import com.devicefy.backend.service.EquipoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +31,7 @@ import java.util.List;
 public class EquipoController {
 
     private final EquipoService equipoService;
+    private final UsuarioRepository usuarioRepository;
 
     @GetMapping
     public List<EquipoResponse> listar(@RequestParam(required = false) String hostname,
@@ -32,8 +39,17 @@ public class EquipoController {
                                        @RequestParam(required = false) String etiquetaPatrimonial,
                                        @RequestParam(required = false) String estado,
                                        @RequestParam(required = false) Long centroId,
-                                       @RequestParam(required = false) Boolean activo) {
-        return equipoService.listar(hostname, numeroSerie, etiquetaPatrimonial, estado, centroId, activo);
+                                       @RequestParam(required = false) Boolean activo,
+                                       @RequestParam(required = false) Long tecnicoId,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        Usuario usuario = usuarioRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        boolean esAdmin = usuario.getRoles().stream().anyMatch(r -> r.getNombre() == RolNombre.ADMIN);
+        Long tecnicoFiltro = tecnicoId;
+        if (!esAdmin) {
+            tecnicoFiltro = usuario.getId();
+        }
+        return equipoService.listar(hostname, numeroSerie, etiquetaPatrimonial, estado, centroId, activo,
+                tecnicoFiltro, null);
     }
 
     @GetMapping("/{id}")
@@ -43,17 +59,20 @@ public class EquipoController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public EquipoResponse crear(@Valid @RequestBody EquipoRequest request) {
         return equipoService.crear(request);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public EquipoResponse actualizar(@PathVariable Long id, @Valid @RequestBody EquipoRequest request) {
         return equipoService.actualizar(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void eliminar(@PathVariable Long id) {
         equipoService.eliminar(id);
     }

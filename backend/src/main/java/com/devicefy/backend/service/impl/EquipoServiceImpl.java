@@ -1,9 +1,11 @@
 package com.devicefy.backend.service.impl;
 
 import com.devicefy.backend.domain.Centro;
+import com.devicefy.backend.domain.DespliegueEquipo;
 import com.devicefy.backend.domain.Equipo;
 import com.devicefy.backend.domain.RedConfig;
 import com.devicefy.backend.domain.Ubicacion;
+import com.devicefy.backend.domain.Usuario;
 import com.devicefy.backend.domain.UsuarioAsignado;
 import com.devicefy.backend.domain.enums.TipoAsignacionRed;
 import com.devicefy.backend.dto.EquipoRequest;
@@ -12,6 +14,7 @@ import com.devicefy.backend.dto.PerifericoResponse;
 import com.devicefy.backend.dto.RedConfigRequest;
 import com.devicefy.backend.dto.RedConfigResponse;
 import com.devicefy.backend.repository.CentroRepository;
+import com.devicefy.backend.repository.DespliegueEquipoRepository;
 import com.devicefy.backend.repository.EquipoRepository;
 import com.devicefy.backend.repository.EstadoEquipoRepository;
 import com.devicefy.backend.repository.PerifericoRepository;
@@ -40,11 +43,16 @@ public class EquipoServiceImpl implements EquipoService {
     private final UbicacionRepository ubicacionRepository;
     private final UsuarioAsignadoRepository usuarioAsignadoRepository;
     private final EstadoEquipoRepository estadoEquipoRepository;
+    private final DespliegueEquipoRepository despliegueEquipoRepository;
 
     @Override
     @Transactional(readOnly = true)
     public List<EquipoResponse> listar(String hostname, String numeroSerie, String etiquetaPatrimonial,
-                                       String estado, Long centroId, Boolean activo) {
+                                       String estado, Long centroId, Boolean activo, Long tecnicoId,
+                                       List<Long> centrosPermitidos) {
+        if (centrosPermitidos != null && centrosPermitidos.isEmpty()) {
+            return List.of();
+        }
         Specification<Equipo> spec = (root, query, cb) -> cb.conjunction();
         if (hostname != null && !hostname.isBlank()) {
             spec = spec.and(like("hostname", hostname));
@@ -64,7 +72,26 @@ public class EquipoServiceImpl implements EquipoService {
         if (activo != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("activo"), activo));
         }
+        if (tecnicoId != null) {
+            spec = spec.and((root, query, cb) -> {
+                jakarta.persistence.criteria.Subquery<Long> sub = subqueryEquiposProcesados(cb, query, tecnicoId);
+                return root.get("id").in(sub);
+            });
+        }
+        if (centrosPermitidos != null) {
+            spec = spec.and((root, query, cb) -> root.get("centro").get("id").in(centrosPermitidos));
+        }
         return equipoRepository.findAll(spec).stream().map(this::toResponse).toList();
+    }
+
+    private jakarta.persistence.criteria.Subquery<Long> subqueryEquiposProcesados(
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            jakarta.persistence.criteria.CriteriaQuery<?> query, Long tecnicoId) {
+        jakarta.persistence.criteria.Subquery<Long> sub = query.subquery(Long.class);
+        jakarta.persistence.criteria.Root<DespliegueEquipo> de = sub.from(DespliegueEquipo.class);
+        sub.select(de.get("equipo").get("id"));
+        sub.where(cb.equal(de.get("tecnico").get("id"), tecnicoId));
+        return sub;
     }
 
     @Override
@@ -230,6 +257,11 @@ public class EquipoServiceImpl implements EquipoService {
                         p.getTipo(), p.getMarca(), p.getModelo(), p.getNumeroSerie(), p.getEtiquetaPatrimonial(),
                         p.getTamanioPulgadas(), p.getActivo()))
                 .toList();
+        Usuario tecnicoProceso = despliegueEquipoRepository.findByEquipoId(equipo.getId()).stream()
+                .map(DespliegueEquipo::getTecnico)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
         return new EquipoResponse(equipo.getId(), equipo.getHostname(), equipo.getNumeroSerie(),
                 equipo.getEtiquetaPatrimonial(), equipo.getFabricante(), equipo.getModelo(),
                 equipo.getSistemaOperativo(), equipo.getProcesador(), equipo.getTipoEquipo(),
@@ -240,6 +272,8 @@ public class EquipoServiceImpl implements EquipoService {
                 equipo.getUbicacion() == null ? null : equipo.getUbicacion().getNombre(),
                 equipo.getUsuarioAsignado() == null ? null : equipo.getUsuarioAsignado().getId(),
                 equipo.getUsuarioAsignado() == null ? null : equipo.getUsuarioAsignado().getNombre(),
+                tecnicoProceso == null ? null : tecnicoProceso.getId(),
+                tecnicoProceso == null ? null : tecnicoProceso.getNombreCompleto(),
                 equipo.getObservaciones(), equipo.getActivo(), red, perifericos);
     }
 }

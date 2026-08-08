@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 import { Add, Delete, Edit } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
-import { centrosApi, equiposApi, ubicacionesApi, type Equipo, type RedConfigRequest } from '../lib/api'
+import { authApi, centrosApi, equiposApi, ubicacionesApi, type Equipo, type RedConfigRequest } from '../lib/api'
 import { ESTADOS_EQUIPO, TIPOS_ASIGNACION_RED, TIPOS_EQUIPO } from '../lib/constants'
 
 interface FormValues {
@@ -89,6 +89,9 @@ export default function EquiposPage() {
   const centroSeleccionado = watch('centroId')
 
   const { data: centros = [] } = useQuery({ queryKey: ['centros'], queryFn: centrosApi.list })
+
+  const { data: authMe } = useQuery({ queryKey: ['authMe'], queryFn: authApi.me })
+  const esAdmin = authMe?.authorities.includes('ROLE_ADMIN') ?? false
   const { data: ubicaciones = [] } = useQuery({
     queryKey: ['ubicaciones'],
     queryFn: () => ubicacionesApi.list(),
@@ -266,9 +269,11 @@ export default function EquiposPage() {
           <MenuItem value="false">No</MenuItem>
           <MenuItem value="">Todos</MenuItem>
         </TextField>
-        <Button variant="contained" startIcon={<Add />} onClick={abrirCrear}>
-          Nuevo equipo
-        </Button>
+        {esAdmin && (
+          <Button variant="contained" startIcon={<Add />} onClick={abrirCrear}>
+            Nuevo equipo
+          </Button>
+        )}
       </Box>
 
       {error && (
@@ -288,20 +293,20 @@ export default function EquiposPage() {
               <TableCell>Ubicación</TableCell>
               <TableCell>Nº serie</TableCell>
               <TableCell>Activo</TableCell>
-              <TableCell align="right">Acciones</TableCell>
+              {esAdmin && <TableCell align="right">Acciones</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   Cargando…
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && equipos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   Sin resultados
                 </TableCell>
               </TableRow>
@@ -315,14 +320,16 @@ export default function EquiposPage() {
                 <TableCell>{equipo.ubicacionNombre ?? '—'}</TableCell>
                 <TableCell>{equipo.numeroSerie ?? '—'}</TableCell>
                 <TableCell>{equipo.activo ? 'Sí' : 'No'}</TableCell>
-                <TableCell align="right">
-                  <IconButton size="small" onClick={() => abrirEditar(equipo)}>
-                    <Edit fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => eliminar.mutate(equipo.id)}>
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </TableCell>
+                {esAdmin && (
+                  <TableCell align="right">
+                    <IconButton size="small" onClick={() => abrirEditar(equipo)}>
+                      <Edit fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => eliminar.mutate(equipo.id)}>
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

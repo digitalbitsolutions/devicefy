@@ -30,6 +30,8 @@ public class EquipoResponse {
     private String ubicacionNombre;
     private Long usuarioAsignadoId;
     private String usuarioAsignadoNombre;
+    private Long tecnicoProcesoId;
+    private String tecnicoProcesoNombre;
     private String observaciones;
     private Boolean activo;
     private RedConfigResponse red;

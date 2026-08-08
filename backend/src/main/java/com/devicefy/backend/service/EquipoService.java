@@ -7,7 +7,8 @@ import java.util.List;
 
 public interface EquipoService {
     List<EquipoResponse> listar(String hostname, String numeroSerie, String etiquetaPatrimonial,
-                                String estado, Long centroId, Boolean activo);
+                                String estado, Long centroId, Boolean activo, Long tecnicoId,
+                                List<Long> centrosPermitidos);
     EquipoResponse obtener(Long id);
     EquipoResponse crear(EquipoRequest request);
     EquipoResponse actualizar(Long id, EquipoRequest request);

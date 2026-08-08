@@ -144,6 +144,8 @@ export interface Equipo {
   ubicacionNombre?: string | null
   usuarioAsignadoId?: number | null
   usuarioAsignadoNombre?: string | null
+  tecnicoProcesoId?: number | null
+  tecnicoProcesoNombre?: string | null
   observaciones?: string | null
   activo: boolean
   red?: RedConfig | null
@@ -175,6 +177,7 @@ export interface EquipoFiltros {
   estado?: string
   centroId?: number
   activo?: boolean
+  tecnicoId?: number
 }
 
 export const authApi = {
@@ -210,4 +213,94 @@ export const equiposApi = {
   update: (id: number, body: EquipoRequest) =>
     api.put<Equipo>(`/equipos/${id}`, body).then((r) => r.data),
   remove: (id: number) => api.delete(`/equipos/${id}`),
+}
+
+
+export interface Despliegue {
+  id: number
+  nombre: string
+  ficheroNombre?: string | null
+  fechaImportacion?: string | null
+  estado: string
+  totalEquipos: number
+  enProceso: number
+  hechos: number
+}
+
+export interface ErrorImportacion {
+  fila: number
+  motivo: string
+}
+
+export interface ImportacionResult {
+  despliegueId: number
+  nombreDespliegue: string
+  formato: string
+  filasLeidas: number
+  equiposCreados: number
+  centrosCreados: number
+  ubicacionesCreadas: number
+  errores: number
+  erroresDetalle: ErrorImportacion[]
+}
+
+export interface DespliegueEquipo {
+  id: number
+  despliegueId: number
+  equipoId: number
+  hostnameActual?: string | null
+  hostnameNuevo?: string | null
+  estadoRenove?: string | null
+  anioRenove?: number | null
+  perfilImagen?: string | null
+  estado: string
+  tecnicoId?: number | null
+  tecnicoNombre?: string | null
+  fechaToma?: string | null
+  numeroSerie?: string | null
+  fabricante?: string | null
+  modelo?: string | null
+  sistemaOperativo?: string | null
+  procesador?: string | null
+  centroNombre?: string | null
+  ubicacionNombre?: string | null
+  ip?: string | null
+}
+
+export const importacionesApi = {
+  importar: (nombreDespliegue: string, archivo: File) => {
+    const form = new FormData()
+    form.append('nombreDespliegue', nombreDespliegue)
+    form.append('archivo', archivo)
+    return api.post<ImportacionResult>('/importaciones', form).then((r) => r.data)
+  },
+  listarDespliegues: () => api.get<Despliegue[]>('/importaciones/despliegues').then((r) => r.data),
+  listarEquipos: (id: number) =>
+    api.get<DespliegueEquipo[]>(`/importaciones/despliegues/${id}/equipos`).then((r) => r.data),
+}
+
+
+export interface Usuario {
+  id: number
+  username: string
+  nombreCompleto: string
+  email?: string | null
+  activo: boolean
+  roles: string[]
+  centroIds: number[]
+  centroNombres: string[]
+}
+
+export const usuariosApi = {
+  listar: () => api.get<Usuario[]>('/usuarios').then((r) => r.data),
+  crear: (body: {
+    username: string
+    password: string
+    nombreCompleto: string
+    email?: string
+    rol?: string
+  }) => api.post<Usuario>('/usuarios', body).then((r) => r.data),
+  asignarCentros: (id: number, centroIds: number[]) =>
+    api.put<Usuario>(`/usuarios/${id}/centros`, { centroIds }).then((r) => r.data),
+  misCentros: () => api.get<Centro[]>('/usuarios/me/centros').then((r) => r.data),
 }

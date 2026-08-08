@@ -10,7 +10,13 @@ export default function Layout() {
     ? '/ubicaciones'
     : location.pathname.startsWith('/equipos')
       ? '/equipos'
-      : '/centros'
+      : location.pathname.startsWith('/importacion')
+        ? '/importacion'
+        : location.pathname.startsWith('/despliegues')
+          ? '/despliegues'
+          : location.pathname.startsWith('/usuarios')
+            ? '/usuarios'
+            : '/centros'
 
   const logout = () => {
     clearToken()
@@ -33,6 +39,9 @@ export default function Layout() {
             <Tab value="/centros" label="Centros" />
             <Tab value="/ubicaciones" label="Ubicaciones" />
             <Tab value="/equipos" label="Equipos" />
+            <Tab value="/importacion" label="Importación" />
+            <Tab value="/despliegues" label="Despliegues" />
+            <Tab value="/usuarios" label="Usuarios" />
           </Tabs>
           <Button color="inherit" onClick={logout}>
             Salir

@@ -5,6 +5,10 @@ import LoginPage from './pages/LoginPage'
 import CentrosPage from './pages/CentrosPage'
 import UbicacionesPage from './pages/UbicacionesPage'
 import EquiposPage from './pages/EquiposPage'
+import ImportacionPage from './pages/ImportacionPage'
+import DesplieguesPage from './pages/DesplieguesPage'
+import DespliegueDetallePage from './pages/DespliegueDetallePage'
+import UsuariosPage from './pages/UsuariosPage'
 
 function App() {
   return (
@@ -20,6 +24,10 @@ function App() {
         <Route path="/centros" element={<CentrosPage />} />
         <Route path="/ubicaciones" element={<UbicacionesPage />} />
         <Route path="/equipos" element={<EquiposPage />} />
+        <Route path="/importacion" element={<ImportacionPage />} />
+        <Route path="/despliegues" element={<DesplieguesPage />} />
+        <Route path="/despliegues/:id" element={<DespliegueDetallePage />} />
+        <Route path="/usuarios" element={<UsuariosPage />} />
         <Route path="/" element={<Navigate to="/centros" replace />} />
         <Route path="*" element={<Navigate to="/centros" replace />} />
       </Route>

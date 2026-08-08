@@ -22,8 +22,14 @@ public class CentroServiceImpl implements CentroService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CentroResponse> listar() {
-        return centroRepository.findAll().stream().map(this::toResponse).toList();
+    public List<CentroResponse> listar(List<Long> centrosPermitidos) {
+        if (centrosPermitidos != null && centrosPermitidos.isEmpty()) {
+            return List.of();
+        }
+        return centroRepository.findAll().stream()
+                .filter(c -> centrosPermitidos == null || centrosPermitidos.contains(c.getId()))
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override
