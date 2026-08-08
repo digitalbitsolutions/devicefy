@@ -36,7 +36,7 @@ opencode (orquestador)
 ## Fases y tareas delegadas
 
 ### Fase 4 — Seguridad JWT
-- [ ] `backend-dev` (deepseek-v3.1): implementar login, emisión/validación de JWT y `UserDetailsService`.
+- [x] `backend-dev` (deepseek-v3.1): implementar login, emisión/validación de JWT y `UserDetailsService`.
 - [ ] `backend-dev`: proteger endpoints por rol (ADMIN / TECNICO / CONSULTA) en `SecurityConfig`.
 - [ ] `backend-dev`: refresh token y logout (opcional).
 - [ ] `explore`: revisar que ningún endpoint queda sin proteger.
