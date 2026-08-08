@@ -8,4 +8,8 @@ import java.util.List;
 public interface UbicacionRepository extends JpaRepository<Ubicacion, Long> {
 
     List<Ubicacion> findByCentroId(Long centroId);
+
+    boolean existsByCentroIdAndNombre(Long centroId, String nombre);
+
+    boolean existsByCentroIdAndNombreAndIdNot(Long centroId, String nombre, Long id);
 }
