@@ -150,7 +150,9 @@ public class UsuarioController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         return u.getCentros().stream()
                 .sorted(Comparator.comparing(Centro::getNombre))
-                .map(c -> new CentroResponse(c.getId(), c.getCodigo(), c.getNombre(), c.getTipo(), c.getDireccion(), c.getActivo()))
+                .map(c -> new CentroResponse(c.getId(), c.getCodigo(), c.getNombre(), c.getTipo(), c.getDireccion(),
+                        c.getComunidadAutonoma(), c.getProvincia(), c.getTelefono(), c.getEmail(), c.getActivo(),
+                        List.of()))
                 .toList();
     }
 

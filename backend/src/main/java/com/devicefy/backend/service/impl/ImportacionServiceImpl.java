@@ -7,9 +7,13 @@ import com.devicefy.backend.domain.Entidad;
 import com.devicefy.backend.domain.Equipo;
 import com.devicefy.backend.domain.RedConfig;
 import com.devicefy.backend.domain.Ubicacion;
+import com.devicefy.backend.domain.Usuario;
+import com.devicefy.backend.domain.enums.RolNombre;
 import com.devicefy.backend.domain.enums.TipoAsignacionRed;
 import com.devicefy.backend.dto.ActualizarDespliegueRequest;
+import com.devicefy.backend.dto.AsignarCentrosRequest;
 import com.devicefy.backend.dto.AsignarDesplieguesRequest;
+import com.devicefy.backend.dto.CrearDespliegueRequest;
 import com.devicefy.backend.dto.DespliegueEquipoResponse;
 import com.devicefy.backend.dto.DespliegueResponse;
 import com.devicefy.backend.dto.ErrorImportacion;
@@ -22,6 +26,7 @@ import com.devicefy.backend.repository.EquipoRepository;
 import com.devicefy.backend.repository.RedConfigRepository;
 import com.devicefy.backend.repository.UbicacionRepository;
 import com.devicefy.backend.service.ImportacionService;
+import com.devicefy.backend.service.OllamaColumnMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -29,7 +34,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +61,7 @@ public class ImportacionServiceImpl implements ImportacionService {
     private static final Pattern PATRON_IPV4 = Pattern.compile("\\b\\d{1,3}(?:\\.\\d{1,3}){3}\\b");
     private static final Pattern PATRON_RENOVE = Pattern.compile("^R\\s*(\\d{4})$");
     private static final Pattern PATRON_PLANTA = Pattern.compile("(?i).*planta.*");
+    private static final Set<String> ESTADOS_PROYECTO = Set.of("PENDIENTE", "EN_PROCESO", "FINALIZADO");
 
     private final DespliegueRepository despliegueRepository;
     private final DespliegueEquipoRepository despliegueEquipoRepository;
@@ -66,6 +71,7 @@ public class ImportacionServiceImpl implements ImportacionService {
     private final EquipoRepository equipoRepository;
     private final RedConfigRepository redConfigRepository;
     private final com.devicefy.backend.repository.UsuarioRepository usuarioRepository;
+    private final OllamaColumnMapper ollamaColumnMapper;
 
     @Override
     @Transactional
@@ -83,14 +89,8 @@ public class ImportacionServiceImpl implements ImportacionService {
     @Override
     @Transactional(readOnly = true)
     public List<DespliegueResponse> listarDespliegues() {
-        return despliegueRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
-                .map(d -> new DespliegueResponse(d.getId(), d.getNombre(), d.getProvincia(),
-                        d.getFicheroNombre(), d.getFechaImportacion(), d.getEstado(),
-                        despliegueEquipoRepository.countByDespliegueId(d.getId()),
-                        despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "EN_PROCESO"),
-                        despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "HECHO"),
-                        d.getTecnicos().stream().map(u -> u.getId()).sorted().toList(),
-                        d.getTecnicos().stream().map(u -> u.getNombreCompleto()).sorted().toList()))
+        return despliegueRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toDespliegueResponse)
                 .toList();
     }
 
@@ -104,28 +104,116 @@ public class ImportacionServiceImpl implements ImportacionService {
 
     @Override
     @Transactional
+    public DespliegueResponse crear(CrearDespliegueRequest request) {
+        if (request.getNombre() == null || request.getNombre().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El nombre del proyecto es obligatorio");
+        }
+        if (despliegueRepository.findByNombre(request.getNombre().trim()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Ya existe un proyecto con el nombre " + request.getNombre().trim());
+        }
+        Despliegue nuevo = new Despliegue();
+        nuevo.setNombre(request.getNombre().trim());
+        nuevo.setProvincia(request.getProvincia());
+        nuevo.setComunidadAutonoma(request.getComunidadAutonoma());
+        nuevo.setEstado(validarEstadoProyecto(request.getEstado(), "PENDIENTE"));
+        if (request.getCentroIds() != null) {
+            for (Long cid : request.getCentroIds()) {
+                centroRepository.findById(cid).ifPresent(nuevo.getCentros()::add);
+            }
+        }
+        aplicarTecnicos(nuevo, request.getTecnicoIds());
+        return toDespliegueResponse(despliegueRepository.save(nuevo));
+    }
+
+    @Override
+    @Transactional
     public DespliegueResponse actualizar(Long despliegueId, ActualizarDespliegueRequest request) {
         Despliegue d = buscar(despliegueId);
         if (request.getNombre() != null && !request.getNombre().isBlank()) {
+            despliegueRepository.findByNombre(request.getNombre().trim())
+                    .filter(existente -> !existente.getId().equals(despliegueId))
+                    .ifPresent(existente -> {
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                "Ya existe un proyecto con el nombre " + request.getNombre().trim());
+                    });
             d.setNombre(request.getNombre().trim());
         }
         if (request.getProvincia() != null) {
             d.setProvincia(request.getProvincia().isBlank() ? null : request.getProvincia().trim());
         }
+        if (request.getComunidadAutonoma() != null) {
+            d.setComunidadAutonoma(request.getComunidadAutonoma().isBlank()
+                    ? null : request.getComunidadAutonoma().trim());
+        }
         if (request.getEstado() != null && !request.getEstado().isBlank()) {
-            d.setEstado(request.getEstado().trim());
+            d.setEstado(validarEstadoProyecto(request.getEstado(), d.getEstado()));
+        }
+        if (request.getCentroIds() != null) {
+            d.getCentros().clear();
+            for (Long centroId : request.getCentroIds()) {
+                centroRepository.findById(centroId).ifPresent(d.getCentros()::add);
+            }
+        }
+        if (request.getTecnicoIds() != null) {
+            aplicarTecnicos(d, request.getTecnicoIds());
         }
         return toDespliegueResponse(despliegueRepository.save(d));
     }
 
     @Override
     @Transactional
+    public void eliminar(Long despliegueId) {
+        Despliegue d = buscar(despliegueId);
+        despliegueRepository.delete(d);
+    }
+
+    @Override
+    @Transactional
     public DespliegueResponse asignarTecnicos(Long despliegueId, AsignarDesplieguesRequest request) {
         Despliegue d = buscar(despliegueId);
-        d.getTecnicos().clear();
-        if (request.getDespliegueIds() != null) {
-            for (Long uid : request.getDespliegueIds()) {
-                usuarioRepository.findById(uid).ifPresent(d.getTecnicos()::add);
+        aplicarTecnicos(d, request.getDespliegueIds());
+        return toDespliegueResponse(despliegueRepository.save(d));
+    }
+
+    private void aplicarTecnicos(Despliegue despliegue, List<Long> tecnicoIds) {
+        despliegue.getTecnicos().clear();
+        if (tecnicoIds == null) {
+            return;
+        }
+        for (Long tecnicoId : tecnicoIds) {
+            Usuario tecnico = usuarioRepository.findById(tecnicoId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Técnico no encontrado: " + tecnicoId));
+            boolean tieneRolTecnico = tecnico.getRoles().stream()
+                    .anyMatch(rol -> rol.getNombre() == RolNombre.TECNICO);
+            if (!tieneRolTecnico) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "El usuario no tiene rol de técnico: " + tecnico.getUsername());
+            }
+            despliegue.getTecnicos().add(tecnico);
+        }
+    }
+
+    private String validarEstadoProyecto(String estado, String valorPorDefecto) {
+        if (estado == null || estado.isBlank()) {
+            return valorPorDefecto;
+        }
+        String normalizado = estado.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!ESTADOS_PROYECTO.contains(normalizado)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estado de proyecto no válido: " + estado);
+        }
+        return normalizado;
+    }
+
+    @Override
+    @Transactional
+    public DespliegueResponse asignarCentros(Long despliegueId, AsignarCentrosRequest request) {
+        Despliegue d = buscar(despliegueId);
+        d.getCentros().clear();
+        if (request.getCentroIds() != null) {
+            for (Long cid : request.getCentroIds()) {
+                centroRepository.findById(cid).ifPresent(d.getCentros()::add);
             }
         }
         return toDespliegueResponse(despliegueRepository.save(d));
@@ -137,13 +225,15 @@ public class ImportacionServiceImpl implements ImportacionService {
     }
 
     private DespliegueResponse toDespliegueResponse(Despliegue d) {
-        return new DespliegueResponse(d.getId(), d.getNombre(), d.getProvincia(),
+        return new DespliegueResponse(d.getId(), d.getNombre(), d.getProvincia(), d.getComunidadAutonoma(),
                 d.getFicheroNombre(), d.getFechaImportacion(), d.getEstado(),
                 despliegueEquipoRepository.countByDespliegueId(d.getId()),
                 despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "EN_PROCESO"),
                 despliegueEquipoRepository.countByDespliegueIdAndEstado(d.getId(), "HECHO"),
                 d.getTecnicos().stream().map(u -> u.getId()).sorted().toList(),
-                d.getTecnicos().stream().map(u -> u.getNombreCompleto()).sorted().toList());
+                d.getTecnicos().stream().map(u -> u.getNombreCompleto()).sorted().toList(),
+                d.getCentros().stream().map(c -> c.getId()).sorted().toList(),
+                d.getCentros().stream().map(c -> c.getNombre()).sorted().toList());
     }
 
     private ImportacionResult importarLibro(String nombreDespliegue, String nombreFichero, Workbook wb) {
@@ -155,13 +245,19 @@ public class ImportacionServiceImpl implements ImportacionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Formato no reconocido. Se soportan los formatos tabulares (Relació / CAPs / Terres de l'Ebre)");
         }
+        DataFormatter df = new DataFormatter();
+        List<String> cabeceras = leerCabeceras(hoja, df);
+        List<List<String>> ejemplos = leerEjemplos(hoja, df, cabeceras.size());
+        Map<String, Integer> columnasIA = ollamaColumnMapper.mapear(cabeceras, ejemplos);
         Map<String, Integer> columnas = mapearColumnas(hoja.getRow(0));
+        if (!columnasIA.isEmpty()) {
+            columnas.putAll(columnasIA);
+        }
         if (columnas.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El archivo no tiene cabeceras reconocidas");
         }
         String perfilMaqueta = extraerPerfilMaqueta(hoja.getRow(0), columnas);
 
-        DataFormatter df = new DataFormatter();
         List<FilaImport> filas = leerFilas(hoja, columnas, perfilMaqueta, df);
         List<ErrorImportacion> errores = validar(filas);
         Set<Integer> filasConError = errores.stream().map(ErrorImportacion::fila).collect(java.util.stream.Collectors.toSet());
@@ -185,6 +281,33 @@ public class ImportacionServiceImpl implements ImportacionService {
         }
         return new ImportacionResult(despliegue.getId(), nombreDespliegue, "TABULAR",
                 filas.size(), c.equipos, c.centros, c.ubicaciones, errores.size(), errores);
+    }
+
+    private List<String> leerCabeceras(Sheet hoja, DataFormatter df) {
+        List<String> cabeceras = new ArrayList<>();
+        Row fila = hoja.getRow(0);
+        if (fila == null) {
+            return cabeceras;
+        }
+        int max = Math.max(0, fila.getLastCellNum());
+        for (int i = 0; i < max; i++) {
+            String v = celda(hoja, 0, i, df);
+            cabeceras.add(v.isBlank() ? "columna" + i : v);
+        }
+        return cabeceras;
+    }
+
+    private List<List<String>> leerEjemplos(Sheet hoja, DataFormatter df, int numColumnas) {
+        List<List<String>> ejemplos = new ArrayList<>();
+        int ultima = hoja.getLastRowNum();
+        for (int r = 1; r <= Math.min(3, ultima); r++) {
+            List<String> fila = new ArrayList<>();
+            for (int i = 0; i < numColumnas; i++) {
+                fila.add(celda(hoja, r, i, df));
+            }
+            ejemplos.add(fila);
+        }
+        return ejemplos;
     }
 
     private boolean esFormatoTabular(Sheet hoja) {
@@ -218,7 +341,7 @@ public class ImportacionServiceImpl implements ImportacionService {
                 case "etiqueta" -> columnas.putIfAbsent("etiqueta", idx);
                 case "nom" -> columnas.putIfAbsent("nom", idx);
                 case "entitat" -> columnas.putIfAbsent("entitat", idx);
-                case "fabricant" -> columnas.putIfAbsent("fabricant", idx);
+                case "fabricant" -> columnas.putIfAbsent("fabricante", idx);
                 case "numerodeserie" -> columnas.putIfAbsent("serie", idx);
                 case "model" -> columnas.putIfAbsent("modelo", idx);
                 case "ubicacio" -> columnas.putIfAbsent("ubicacion", idx);
@@ -239,6 +362,12 @@ public class ImportacionServiceImpl implements ImportacionService {
                         columnas.putIfAbsent("ip", idx);
                     } else if (k.startsWith("maqueta")) {
                         columnas.putIfAbsent("maqueta", idx);
+                    } else if (k.startsWith("etiqueta")) {
+                        columnas.putIfAbsent("etiqueta", idx);
+                    } else if (k.contains("serie")) {
+                        columnas.putIfAbsent("serie", idx);
+                    } else if (k.startsWith("nombre") || k.startsWith("equipo") || k.startsWith("hostname")) {
+                        columnas.putIfAbsent("nom", idx);
                     }
                 }
             }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -19,13 +19,23 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Typography,
 } from '@mui/material'
 import { Add, Delete, Edit } from '@mui/icons-material'
 import { useForm } from 'react-hook-form'
-import { authApi, centrosApi, equiposApi, importacionesApi, ubicacionesApi, type Equipo, type RedConfigRequest } from '../lib/api'
+import {
+  authApi,
+  centrosApi,
+  equiposApi,
+  importacionesApi,
+  ubicacionesApi,
+  usuariosApi,
+  type Equipo,
+  type RedConfigRequest,
+} from '../lib/api'
 import { ESTADOS_EQUIPO, TIPOS_ASIGNACION_RED, TIPOS_EQUIPO } from '../lib/constants'
 
 interface FormValues {
@@ -61,11 +71,21 @@ function errorMessage(e: unknown): string {
 
 export default function EquiposPage() {
   const queryClient = useQueryClient()
-  const [filtro, setFiltro] = useState({ hostname: '', estado: '', centroId: '', despliegueId: '', activo: 'true' })
+  const [filtro, setFiltro] = useState({
+    hostname: '',
+    estado: '',
+    centroId: '',
+    despliegueId: '',
+    provincia: '',
+    tecnicoId: '',
+    activo: 'true',
+  })
   const [open, setOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [red, setRed] = useState<RedConfigRequest>(redVacia())
   const [error, setError] = useState('')
+  const [pagina, setPagina] = useState(0)
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(25)
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } =
     useForm<FormValues>({
@@ -88,15 +108,32 @@ export default function EquiposPage() {
 
   const centroSeleccionado = watch('centroId')
 
-  const { data: centros = [] } = useQuery({ queryKey: ['centros'], queryFn: centrosApi.list })
+  const { data: centros = [] } = useQuery({ queryKey: ['centros'], queryFn: () => centrosApi.list() })
 
   const { data: despliegues = [] } = useQuery({
     queryKey: ['despliegues'],
     queryFn: importacionesApi.listarDespliegues,
   })
+  const provincias = useMemo(
+    () =>
+      [
+        ...new Set(
+          despliegues
+            .map((despliegue) => despliegue.provincia?.trim())
+            .filter((provincia): provincia is string => Boolean(provincia)),
+        ),
+      ].sort((a, b) => a.localeCompare(b, 'es')),
+    [despliegues],
+  )
 
   const { data: authMe } = useQuery({ queryKey: ['authMe'], queryFn: authApi.me })
   const esAdmin = authMe?.authorities.includes('ROLE_ADMIN') ?? false
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ['usuarios', 'tecnicos'],
+    queryFn: usuariosApi.listar,
+    enabled: esAdmin,
+  })
+  const tecnicos = usuarios.filter((usuario) => usuario.roles.includes('TECNICO'))
   const { data: ubicaciones = [] } = useQuery({
     queryKey: ['ubicaciones'],
     queryFn: () => ubicacionesApi.list(),
@@ -115,9 +152,24 @@ export default function EquiposPage() {
         estado: filtro.estado || undefined,
         centroId: filtro.centroId ? Number(filtro.centroId) : undefined,
         despliegueId: filtro.despliegueId ? Number(filtro.despliegueId) : undefined,
+        provincia: filtro.provincia || undefined,
+        tecnicoId: filtro.tecnicoId ? Number(filtro.tecnicoId) : undefined,
         activo: filtro.activo === '' ? undefined : filtro.activo === 'true',
       }),
   })
+  const equiposPaginados = useMemo(
+    () => equipos.slice(pagina * registrosPorPagina, pagina * registrosPorPagina + registrosPorPagina),
+    [equipos, pagina, registrosPorPagina],
+  )
+
+  useEffect(() => {
+    setPagina(0)
+  }, [filtro])
+
+  useEffect(() => {
+    const ultimaPagina = Math.max(0, Math.ceil(equipos.length / registrosPorPagina) - 1)
+    setPagina((actual) => Math.min(actual, ultimaPagina))
+  }, [equipos.length, registrosPorPagina])
 
   const guardar = useMutation({
     mutationFn: (values: FormValues) => {
@@ -263,19 +315,50 @@ export default function EquiposPage() {
             </MenuItem>
           ))}
         </TextField>
+        <TextField
+          select
+          label="Proyecto"
+          size="small"
+          value={filtro.despliegueId}
+          onChange={(e) => setFiltro((f) => ({ ...f, despliegueId: e.target.value }))}
+          sx={{ minWidth: 160 }}
+        >
+          <MenuItem value="">Todos</MenuItem>
+          {despliegues.map((d) => (
+            <MenuItem key={d.id} value={String(d.id)}>
+              {d.nombre}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          label="Provincia"
+          size="small"
+          value={filtro.provincia}
+          onChange={(e) => setFiltro((f) => ({ ...f, provincia: e.target.value }))}
+          sx={{ minWidth: 160 }}
+        >
+          <MenuItem value="">Todas</MenuItem>
+          {provincias.map((provincia) => (
+            <MenuItem key={provincia} value={provincia}>
+              {provincia}
+            </MenuItem>
+          ))}
+        </TextField>
         {esAdmin && (
           <TextField
             select
-            label="Proyecto"
+            label="Técnico"
             size="small"
-            value={filtro.despliegueId}
-            onChange={(e) => setFiltro((f) => ({ ...f, despliegueId: e.target.value }))}
-            sx={{ minWidth: 160 }}
+            value={filtro.tecnicoId}
+            onChange={(e) => setFiltro((f) => ({ ...f, tecnicoId: e.target.value }))}
+            sx={{ minWidth: 180 }}
           >
             <MenuItem value="">Todos</MenuItem>
-            {despliegues.map((d) => (
-              <MenuItem key={d.id} value={String(d.id)}>
-                {d.nombre}
+            {tecnicos.map((tecnico) => (
+              <MenuItem key={tecnico.id} value={String(tecnico.id)}>
+                {tecnico.nombreCompleto}
+                {!tecnico.activo ? ' (inactivo)' : ''}
               </MenuItem>
             ))}
           </TextField>
@@ -305,8 +388,9 @@ export default function EquiposPage() {
         </Alert>
       )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
+      <Paper>
+        <TableContainer>
+          <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Hostname</TableCell>
@@ -322,19 +406,19 @@ export default function EquiposPage() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={esAdmin ? 8 : 7} align="center">
                   Cargando…
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && equipos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={esAdmin ? 8 : 7} align="center">
                   Sin resultados
                 </TableCell>
               </TableRow>
             )}
-            {equipos.map((equipo) => (
+            {equiposPaginados.map((equipo) => (
               <TableRow key={equipo.id} hover>
                 <TableCell>{equipo.hostname ?? '—'}</TableCell>
                 <TableCell>{equipo.tipoEquipo}</TableCell>
@@ -356,8 +440,23 @@ export default function EquiposPage() {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
-      </TableContainer>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          component="div"
+          count={equipos.length}
+          page={pagina}
+          rowsPerPage={registrosPorPagina}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(_, nuevaPagina) => setPagina(nuevaPagina)}
+          onRowsPerPageChange={(e) => {
+            setRegistrosPorPagina(Number(e.target.value))
+            setPagina(0)
+          }}
+          labelRowsPerPage="Registros por página:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count} registros`}
+        />
+      </Paper>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>{editId ? 'Editar equipo' : 'Nuevo equipo'}</DialogTitle>

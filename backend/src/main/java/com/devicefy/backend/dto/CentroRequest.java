@@ -25,5 +25,17 @@ public class CentroRequest {
     @Size(max = 255)
     private String direccion;
 
+    @Size(max = 100)
+    private String comunidadAutonoma;
+
+    @Size(max = 100)
+    private String provincia;
+
+    @Size(max = 30)
+    private String telefono;
+
+    @Size(max = 150)
+    private String email;
+
     private Boolean activo;
 }

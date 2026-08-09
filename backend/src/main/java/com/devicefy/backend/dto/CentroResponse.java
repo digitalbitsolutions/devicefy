@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,5 +18,10 @@ public class CentroResponse {
     private String nombre;
     private String tipo;
     private String direccion;
+    private String comunidadAutonoma;
+    private String provincia;
+    private String telefono;
+    private String email;
     private Boolean activo;
+    private List<ResponsableResponse> responsables;
 }

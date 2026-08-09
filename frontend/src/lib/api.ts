@@ -58,13 +58,33 @@ export interface RegisterRequest {
   email?: string
 }
 
+export interface Responsable {
+  id: number
+  areaOficina?: string | null
+  nombre?: string | null
+  telefono?: string | null
+  email?: string | null
+}
+
+export interface ResponsableRequest {
+  areaOficina?: string
+  nombre?: string
+  telefono?: string
+  email?: string
+}
+
 export interface Centro {
   id: number
   codigo: string
   nombre: string
   tipo?: string | null
   direccion?: string | null
+  comunidadAutonoma?: string | null
+  provincia?: string | null
+  telefono?: string | null
+  email?: string | null
   activo: boolean
+  responsables?: Responsable[]
 }
 
 export interface CentroRequest {
@@ -72,6 +92,10 @@ export interface CentroRequest {
   nombre: string
   tipo?: string
   direccion?: string
+  comunidadAutonoma?: string
+  provincia?: string
+  telefono?: string
+  email?: string
   activo?: boolean
 }
 
@@ -179,6 +203,7 @@ export interface EquipoFiltros {
   activo?: boolean
   tecnicoId?: number
   despliegueId?: number
+  provincia?: string
 }
 
 export const authApi = {
@@ -189,11 +214,18 @@ export const authApi = {
 }
 
 export const centrosApi = {
-  list: () => api.get<Centro[]>('/centros').then((r) => r.data),
+  list: (params?: { comunidadAutonoma?: string }) =>
+    api.get<Centro[]>('/centros', { params }).then((r) => r.data),
   create: (body: CentroRequest) => api.post<Centro>('/centros', body).then((r) => r.data),
   update: (id: number, body: CentroRequest) =>
     api.put<Centro>(`/centros/${id}`, body).then((r) => r.data),
   remove: (id: number) => api.delete(`/centros/${id}`),
+  crearResponsable: (id: number, body: ResponsableRequest) =>
+    api.post<Responsable>(`/centros/${id}/responsables`, body).then((r) => r.data),
+  actualizarResponsable: (id: number, responsableId: number, body: ResponsableRequest) =>
+    api.put<Responsable>(`/centros/${id}/responsables/${responsableId}`, body).then((r) => r.data),
+  eliminarResponsable: (id: number, responsableId: number) =>
+    api.delete(`/centros/${id}/responsables/${responsableId}`),
 }
 
 export const ubicacionesApi = {
@@ -221,6 +253,7 @@ export interface Despliegue {
   id: number
   nombre: string
   provincia?: string | null
+  comunidadAutonoma?: string | null
   ficheroNombre?: string | null
   fechaImportacion?: string | null
   estado: string
@@ -229,12 +262,26 @@ export interface Despliegue {
   hechos: number
   tecnicoIds: number[]
   tecnicoNombres: string[]
+  centroIds: number[]
+  centroNombres: string[]
+}
+
+export interface CrearDespliegueRequest {
+  nombre: string
+  provincia: string
+  comunidadAutonoma: string
+  centroIds?: number[]
+  tecnicoIds?: number[]
+  estado?: string
 }
 
 export interface ActualizarDespliegueRequest {
   nombre?: string
   provincia?: string
+  comunidadAutonoma?: string
   estado?: string
+  centroIds?: number[]
+  tecnicoIds?: number[]
 }
 
 export interface ErrorImportacion {
@@ -285,13 +332,20 @@ export const importacionesApi = {
     return api.post<ImportacionResult>('/importaciones', form).then((r) => r.data)
   },
   listarDespliegues: () => api.get<Despliegue[]>('/importaciones/despliegues').then((r) => r.data),
+  crearDespliegue: (body: CrearDespliegueRequest) =>
+    api.post<Despliegue>('/importaciones/despliegues', body).then((r) => r.data),
   listarEquipos: (id: number) =>
     api.get<DespliegueEquipo[]>(`/importaciones/despliegues/${id}/equipos`).then((r) => r.data),
   actualizar: (id: number, body: ActualizarDespliegueRequest) =>
     api.put<Despliegue>(`/importaciones/despliegues/${id}`, body).then((r) => r.data),
+  eliminar: (id: number) => api.delete(`/importaciones/despliegues/${id}`),
   asignarTecnicos: (id: number, usuarioIds: number[]) =>
     api
       .put<Despliegue>(`/importaciones/despliegues/${id}/tecnicos`, { despliegueIds: usuarioIds })
+      .then((r) => r.data),
+  asignarCentros: (id: number, centroIds: number[]) =>
+    api
+      .put<Despliegue>(`/importaciones/despliegues/${id}/centros`, { centroIds })
       .then((r) => r.data),
 }
 

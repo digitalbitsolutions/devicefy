@@ -7,6 +7,7 @@ public record DespliegueResponse(
         Long id,
         String nombre,
         String provincia,
+        String comunidadAutonoma,
         String ficheroNombre,
         Instant fechaImportacion,
         String estado,
@@ -14,5 +15,7 @@ public record DespliegueResponse(
         long enProceso,
         long hechos,
         List<Long> tecnicoIds,
-        List<String> tecnicoNombres) {
+        List<String> tecnicoNombres,
+        List<Long> centroIds,
+        List<String> centroNombres) {
 }

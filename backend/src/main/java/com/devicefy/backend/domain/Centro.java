@@ -36,12 +36,27 @@ public class Centro extends BaseEntity {
     @Column(name = "direccion", length = 255)
     private String direccion;
 
+    @Column(name = "comunidad_autonoma", length = 100)
+    private String comunidadAutonoma;
+
+    @Column(name = "provincia", length = 100)
+    private String provincia;
+
+    @Column(name = "telefono", length = 30)
+    private String telefono;
+
+    @Column(name = "email", length = 150)
+    private String email;
+
     @Column(name = "activo", nullable = false)
     private Boolean activo = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entidad_id")
     private Entidad entidad;
+
+    @OneToMany(mappedBy = "centro", orphanRemoval = true)
+    private List<CentroResponsable> responsables = new ArrayList<>();
 
     @ManyToMany(mappedBy = "centros")
     private Set<Usuario> tecnicos = new HashSet<>();

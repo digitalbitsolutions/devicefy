@@ -49,7 +49,7 @@ public class EquipoServiceImpl implements EquipoService {
     @Transactional(readOnly = true)
     public List<EquipoResponse> listar(String hostname, String numeroSerie, String etiquetaPatrimonial,
                                        String estado, Long centroId, Boolean activo, Long tecnicoId,
-                                       Long despliegueId, List<Long> centrosPermitidos) {
+                                       Long despliegueId, String provincia, List<Long> centrosPermitidos) {
         if (centrosPermitidos != null && centrosPermitidos.isEmpty()) {
             return List.of();
         }
@@ -72,15 +72,10 @@ public class EquipoServiceImpl implements EquipoService {
         if (activo != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("activo"), activo));
         }
-        if (tecnicoId != null) {
+        if (tecnicoId != null || despliegueId != null || (provincia != null && !provincia.isBlank())) {
             spec = spec.and((root, query, cb) -> {
-                jakarta.persistence.criteria.Subquery<Long> sub = subqueryEquiposProcesados(cb, query, tecnicoId);
-                return root.get("id").in(sub);
-            });
-        }
-        if (despliegueId != null) {
-            spec = spec.and((root, query, cb) -> {
-                jakarta.persistence.criteria.Subquery<Long> sub = subqueryEquiposDelProyecto(cb, query, despliegueId);
+                jakarta.persistence.criteria.Subquery<Long> sub = subqueryEquiposProcesados(
+                        cb, query, tecnicoId, despliegueId, provincia);
                 return root.get("id").in(sub);
             });
         }
@@ -92,21 +87,24 @@ public class EquipoServiceImpl implements EquipoService {
 
     private jakarta.persistence.criteria.Subquery<Long> subqueryEquiposProcesados(
             jakarta.persistence.criteria.CriteriaBuilder cb,
-            jakarta.persistence.criteria.CriteriaQuery<?> query, Long tecnicoId) {
+            jakarta.persistence.criteria.CriteriaQuery<?> query, Long tecnicoId, Long despliegueId,
+            String provincia) {
         jakarta.persistence.criteria.Subquery<Long> sub = query.subquery(Long.class);
         jakarta.persistence.criteria.Root<DespliegueEquipo> de = sub.from(DespliegueEquipo.class);
         sub.select(de.get("equipo").get("id"));
-        sub.where(cb.equal(de.get("tecnico").get("id"), tecnicoId));
-        return sub;
-    }
-
-    private jakarta.persistence.criteria.Subquery<Long> subqueryEquiposDelProyecto(
-            jakarta.persistence.criteria.CriteriaBuilder cb,
-            jakarta.persistence.criteria.CriteriaQuery<?> query, Long despliegueId) {
-        jakarta.persistence.criteria.Subquery<Long> sub = query.subquery(Long.class);
-        jakarta.persistence.criteria.Root<DespliegueEquipo> de = sub.from(DespliegueEquipo.class);
-        sub.select(de.get("equipo").get("id"));
-        sub.where(cb.equal(de.get("despliegue").get("id"), despliegueId));
+        java.util.List<jakarta.persistence.criteria.Predicate> condiciones = new java.util.ArrayList<>();
+        if (tecnicoId != null) {
+            condiciones.add(cb.equal(de.get("tecnico").get("id"), tecnicoId));
+        }
+        if (despliegueId != null) {
+            condiciones.add(cb.equal(de.get("despliegue").get("id"), despliegueId));
+        }
+        if (provincia != null && !provincia.isBlank()) {
+            condiciones.add(cb.equal(
+                    cb.lower(de.get("despliegue").get("provincia")),
+                    provincia.trim().toLowerCase(java.util.Locale.ROOT)));
+        }
+        sub.where(condiciones.toArray(jakarta.persistence.criteria.Predicate[]::new));
         return sub;
     }
 

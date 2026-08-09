@@ -1,9 +1,13 @@
 package com.devicefy.backend.service.impl;
 
 import com.devicefy.backend.domain.Centro;
+import com.devicefy.backend.domain.CentroResponsable;
 import com.devicefy.backend.dto.CentroRequest;
 import com.devicefy.backend.dto.CentroResponse;
+import com.devicefy.backend.dto.CentroResponsableRequest;
+import com.devicefy.backend.dto.ResponsableResponse;
 import com.devicefy.backend.repository.CentroRepository;
+import com.devicefy.backend.repository.CentroResponsableRepository;
 import com.devicefy.backend.service.CentroService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -12,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -19,15 +24,20 @@ import java.util.List;
 public class CentroServiceImpl implements CentroService {
 
     private final CentroRepository centroRepository;
+    private final CentroResponsableRepository responsableRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public List<CentroResponse> listar(List<Long> centrosPermitidos) {
-        if (centrosPermitidos != null && centrosPermitidos.isEmpty()) {
-            return List.of();
+    public List<CentroResponse> listar(List<Long> centrosPermitidos, String comunidadAutonoma) {
+        List<Centro> centros;
+        if (comunidadAutonoma != null && !comunidadAutonoma.isBlank()) {
+            centros = centroRepository.findByComunidadAutonomaIgnoreCaseOrderByNombreAsc(comunidadAutonoma.trim());
+        } else {
+            centros = centroRepository.findAll();
         }
-        return centroRepository.findAll().stream()
+        return centros.stream()
                 .filter(c -> centrosPermitidos == null || centrosPermitidos.contains(c.getId()))
+                .sorted(Comparator.comparing(Centro::getNombre))
                 .map(this::toResponse)
                 .toList();
     }
@@ -77,9 +87,50 @@ public class CentroServiceImpl implements CentroService {
         }
     }
 
+    @Override
+    @Transactional
+    public ResponsableResponse crearResponsable(Long centroId, CentroResponsableRequest request) {
+        Centro centro = buscar(centroId);
+        CentroResponsable responsable = new CentroResponsable();
+        responsable.setCentro(centro);
+        aplicar(request, responsable);
+        return toResponse(responsableRepository.save(responsable));
+    }
+
+    @Override
+    @Transactional
+    public ResponsableResponse actualizarResponsable(Long centroId, Long responsableId,
+                                                     CentroResponsableRequest request) {
+        buscar(centroId);
+        CentroResponsable responsable = buscarResponsable(responsableId);
+        if (!responsable.getCentro().getId().equals(centroId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El responsable no pertenece a ese centro");
+        }
+        aplicar(request, responsable);
+        return toResponse(responsableRepository.save(responsable));
+    }
+
+    @Override
+    @Transactional
+    public void eliminarResponsable(Long centroId, Long responsableId) {
+        buscar(centroId);
+        CentroResponsable responsable = buscarResponsable(responsableId);
+        if (!responsable.getCentro().getId().equals(centroId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El responsable no pertenece a ese centro");
+        }
+        responsableRepository.delete(responsable);
+    }
+
     private Centro buscar(Long id) {
         return centroRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Centro no encontrado"));
+    }
+
+    private CentroResponsable buscarResponsable(Long id) {
+        return responsableRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Responsable no encontrado"));
     }
 
     private void aplicar(Centro centro, CentroRequest request) {
@@ -87,13 +138,35 @@ public class CentroServiceImpl implements CentroService {
         centro.setNombre(request.getNombre());
         centro.setTipo(request.getTipo());
         centro.setDireccion(request.getDireccion());
+        centro.setComunidadAutonoma(request.getComunidadAutonoma());
+        centro.setProvincia(request.getProvincia());
+        centro.setTelefono(request.getTelefono());
+        centro.setEmail(request.getEmail());
         if (request.getActivo() != null) {
             centro.setActivo(request.getActivo());
         }
     }
 
+    private void aplicar(CentroResponsableRequest request, CentroResponsable responsable) {
+        responsable.setAreaOficina(request.getAreaOficina());
+        responsable.setNombre(request.getNombre());
+        responsable.setTelefono(request.getTelefono());
+        responsable.setEmail(request.getEmail());
+    }
+
     private CentroResponse toResponse(Centro centro) {
         return new CentroResponse(centro.getId(), centro.getCodigo(), centro.getNombre(),
-                centro.getTipo(), centro.getDireccion(), centro.getActivo());
+                centro.getTipo(), centro.getDireccion(), centro.getComunidadAutonoma(),
+                centro.getProvincia(), centro.getTelefono(), centro.getEmail(), centro.getActivo(),
+                centro.getResponsables().stream()
+                        .map(this::toResponse)
+                        .sorted(Comparator.comparing(ResponsableResponse::nombre,
+                                Comparator.nullsLast(String::compareTo)))
+                        .toList());
+    }
+
+    private ResponsableResponse toResponse(CentroResponsable r) {
+        return new ResponsableResponse(r.getId(), r.getAreaOficina(), r.getNombre(),
+                r.getTelefono(), r.getEmail());
     }
 }

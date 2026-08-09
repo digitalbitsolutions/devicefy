@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Box,
@@ -9,6 +10,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Typography,
 } from '@mui/material'
@@ -26,10 +28,16 @@ export default function DespliegueDetallePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const despliegueId = Number(id)
+  const [pagina, setPagina] = useState(0)
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(25)
   const { data: equipos = [], isLoading } = useQuery({
     queryKey: ['despliegue-equipos', despliegueId],
     queryFn: () => importacionesApi.listarEquipos(despliegueId),
   })
+  const equiposPaginados = useMemo(
+    () => equipos.slice(pagina * registrosPorPagina, pagina * registrosPorPagina + registrosPorPagina),
+    [equipos, pagina, registrosPorPagina],
+  )
 
   return (
     <Box>
@@ -41,8 +49,9 @@ export default function DespliegueDetallePage() {
           Equipos del despliegue
         </Typography>
       </Box>
-      <TableContainer component={Paper}>
-        <Table size="small">
+      <Paper>
+        <TableContainer>
+          <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Hostname</TableCell>
@@ -59,7 +68,7 @@ export default function DespliegueDetallePage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {equipos.map((e) => (
+            {equiposPaginados.map((e) => (
               <TableRow key={e.id} hover>
                 <TableCell>{e.hostnameActual}</TableCell>
                 <TableCell>{e.numeroSerie}</TableCell>
@@ -86,8 +95,23 @@ export default function DespliegueDetallePage() {
               </TableRow>
             )}
           </TableBody>
-        </Table>
-      </TableContainer>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          component="div"
+          count={equipos.length}
+          page={pagina}
+          rowsPerPage={registrosPorPagina}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={(_, nuevaPagina) => setPagina(nuevaPagina)}
+          onRowsPerPageChange={(e) => {
+            setRegistrosPorPagina(Number(e.target.value))
+            setPagina(0)
+          }}
+          labelRowsPerPage="Registros por página:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count} registros`}
+        />
+      </Paper>
     </Box>
   )
 }

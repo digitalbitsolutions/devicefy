@@ -42,3 +42,8 @@ app:
   bootstrap:
     admin-username: ${ADMIN_USERNAME:admin}
     admin-password: ${ADMIN_PASSWORD:admin123}
+  ollama:
+    url: ${OLLAMA_URL:http://localhost:11434}
+    model: ${OLLAMA_MODEL:qwen2.5:7b}
+    enabled: ${OLLAMA_ENABLED:true}
+    timeout-ms: ${OLLAMA_TIMEOUT_MS:30000}

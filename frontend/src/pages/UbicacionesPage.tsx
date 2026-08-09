@@ -50,7 +50,7 @@ export default function UbicacionesPage() {
     defaultValues: { centroId: 0, nombre: '', planta: '', zona: '', activo: true },
   })
 
-  const { data: centros = [] } = useQuery({ queryKey: ['centros'], queryFn: centrosApi.list })
+  const { data: centros = [] } = useQuery({ queryKey: ['centros'], queryFn: () => centrosApi.list() })
 
   const { data: ubicaciones = [], isLoading } = useQuery({
     queryKey: ['ubicaciones', centroFiltro],

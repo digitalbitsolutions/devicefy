@@ -25,6 +25,7 @@ import {
   Dns,
   ExpandMore,
   FileCopy,
+  FolderCopy,
   HomeWork,
   Monitor,
   Notifications,
@@ -69,6 +70,7 @@ export default function Layout() {
   ]
 
   const admin: ItemNav[] = [
+    { label: 'Proyectos', ruta: '/despliegues', icono: <FolderCopy /> },
     { label: 'Usuarios', ruta: '/usuarios', icono: <Person /> },
     { label: 'Configuración', ruta: '/configuracion', icono: <Settings /> },
   ]
@@ -202,7 +204,13 @@ export default function Layout() {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: 700, flex: 1 }}>
-            {esActivo('/') ? 'Dashboard' : esActivo('/equipos') ? 'Equipos' : 'Devicefy'}
+            {esActivo('/') ? 'Dashboard'
+              : esActivo('/equipos') ? 'Equipos'
+              : esActivo('/despliegues') ? 'Proyectos'
+              : esActivo('/centros') ? 'Centros'
+              : esActivo('/usuarios') ? 'Usuarios'
+              : esActivo('/importacion') ? 'Importación'
+              : 'Devicefy'}
           </Typography>
           <TextField
             placeholder="Buscar equipo, serie o usuario..."

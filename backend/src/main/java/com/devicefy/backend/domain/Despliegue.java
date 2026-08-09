@@ -30,6 +30,9 @@ public class Despliegue extends BaseEntity {
     @Column(name = "provincia", length = 100)
     private String provincia;
 
+    @Column(name = "comunidad_autonoma", length = 100)
+    private String comunidadAutonoma;
+
     @Column(name = "fichero_nombre", length = 255)
     private String ficheroNombre;
 
@@ -48,4 +51,11 @@ public class Despliegue extends BaseEntity {
             joinColumns = @JoinColumn(name = "despliegue_id"),
             inverseJoinColumns = @JoinColumn(name = "usuario_id"))
     private Set<Usuario> tecnicos = new HashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "despliegue_centros",
+            joinColumns = @JoinColumn(name = "despliegue_id"),
+            inverseJoinColumns = @JoinColumn(name = "centro_id"))
+    private Set<Centro> centros = new HashSet<>();
 }

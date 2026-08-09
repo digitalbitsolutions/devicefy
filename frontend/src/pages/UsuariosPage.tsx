@@ -13,6 +13,7 @@ import {
   IconButton,
   InputLabel,
   ListItemText,
+  ListSubheader,
   MenuItem,
   Paper,
   Select,
@@ -53,6 +54,7 @@ export default function UsuariosPage() {
   const [centrosSel, setCentrosSel] = useState<number[]>([])
   const [proyectosSel, setProyectosSel] = useState<number[]>([])
   const [error, setError] = useState('')
+  const [selectorMultipleAbierto, setSelectorMultipleAbierto] = useState('')
 
   const { data: usuarios = [], isLoading } = useQuery({
     queryKey: ['usuarios'],
@@ -60,7 +62,7 @@ export default function UsuariosPage() {
   })
   const { data: centros = [] } = useQuery({
     queryKey: ['centros'],
-    queryFn: centrosApi.list,
+    queryFn: () => centrosApi.list(),
   })
   const { data: despliegues = [] } = useQuery({
     queryKey: ['despliegues'],
@@ -164,6 +166,35 @@ export default function UsuariosPage() {
     setAsignarProyectosDe(u)
     setProyectosSel(u.despliegueIds)
   }
+
+  const botonConfirmarSeleccion = () => (
+    <ListSubheader
+      sx={{
+        position: 'sticky',
+        top: 'auto',
+        bottom: 0,
+        zIndex: 1,
+        bgcolor: 'background.paper',
+        borderTop: 1,
+        borderColor: 'divider',
+        px: 1,
+        py: 1,
+        lineHeight: 'normal',
+      }}
+    >
+      <Button
+        fullWidth
+        size="small"
+        variant="contained"
+        onClick={(event) => {
+          event.stopPropagation()
+          setSelectorMultipleAbierto('')
+        }}
+      >
+        OK
+      </Button>
+    </ListSubheader>
+  )
 
   return (
     <Box>
@@ -294,6 +325,9 @@ export default function UsuariosPage() {
             <Select
               multiple
               label="Centros"
+              open={selectorMultipleAbierto === 'centros'}
+              onOpen={() => setSelectorMultipleAbierto('centros')}
+              onClose={() => setSelectorMultipleAbierto('')}
               value={centrosSel}
               onChange={(e) => setCentrosSel(typeof e.target.value === 'string' ? [] : e.target.value)}
               renderValue={(sel) => centros.filter((c) => sel.includes(c.id)).map((c) => c.nombre).join(', ')}
@@ -303,6 +337,7 @@ export default function UsuariosPage() {
                   <ListItemText primary={c.nombre} secondary={c.codigo} />
                 </MenuItem>
               ))}
+              {botonConfirmarSeleccion()}
             </Select>
           </FormControl>
           <DialogActions sx={{ px: 0, pt: 2 }}>
@@ -323,6 +358,9 @@ export default function UsuariosPage() {
             <Select
               multiple
               label="Proyectos"
+              open={selectorMultipleAbierto === 'proyectos'}
+              onOpen={() => setSelectorMultipleAbierto('proyectos')}
+              onClose={() => setSelectorMultipleAbierto('')}
               value={proyectosSel}
               onChange={(e) => setProyectosSel(typeof e.target.value === 'string' ? [] : e.target.value)}
               renderValue={(sel) => despliegues.filter((d) => sel.includes(d.id)).map((d) => d.nombre).join(', ')}
@@ -332,6 +370,7 @@ export default function UsuariosPage() {
                   <ListItemText primary={d.nombre} secondary={d.provincia ?? '—'} />
                 </MenuItem>
               ))}
+              {botonConfirmarSeleccion()}
             </Select>
           </FormControl>
           <DialogActions sx={{ px: 0, pt: 2 }}>
