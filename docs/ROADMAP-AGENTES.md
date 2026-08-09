@@ -1,89 +1,86 @@
-# Roadmap de desarrollo orquestado con agentes locales (Ollama)
+# Roadmap de Devicefy
 
-**Proyecto:** Devicefy (CRM de inventario de equipos e intervenciones).
-**Estrategia:** todo el desarrollo se orquesta desde **opencode**, delegando tareas a **subagentes** que ejecutan **modelos locales de Ollama** (gratis, sin internet, sin consumir APIs de pago).
-
-## Modelos locales disponibles
-
-| Modelo | Perfil de uso | Tareas recomendadas |
-|---|---|---|
-| `deepseek-v3.1` | Razonamiento y código fuerte | Lógica backend, servicios, seguridad, importación Excel |
-| `deepseek-coder` | Código puro, ediciones rápidas | Refactor, consultas JPA, scripts SQL |
-| `qwen2.5` | Equilibrado, buen frontend | React/TS, componentes MUI, formularios |
-| `gemma3` | Ligero | Tareas auxiliares, resúmenes, validaciones |
-| `llama3.1` / `llama3.2` | Fallback | Tareas sencillas de respaldo |
-| `mistral` | Alternativa general | Fallback cuando otro modelo falla |
-
-**Regla de orquestación:** tarea compleja → modelo más capaz (deepseek-v3.1); tarea repetitiva o de frontend → qwen2.5; tareas triviales → gemma3. Siempre verificando el resultado (`mvnw test`, `npm run build`) desde opencode.
-
-## Arquitectura de orquestación
-
-```
-opencode (orquestador)
-  ├── planifica y divide el trabajo en tareas
-  ├── delega cada tarea a un subagente configurado con modelo local Ollama
-  │     ├── subagente "backend-dev"   -> ollama/deepseek-v3.1
-  │     ├── subagente "frontend-dev"  -> ollama/qwen2.5
-  │     ├── subagente "explore"       -> modelo local ligero
-  │     └── ...
-  ├── recibe resultados parciales y los integra
-  └── ejecuta las verificaciones (build, tests, docker) y corrige
-```
-
-- Ollama se expone en `http://localhost:11434` (API compatible con OpenAI en `/v1`).
-- Los subagentes usan únicamente modelos locales; ningún secreto sale de la máquina.
-
-## Fases y tareas delegadas
-
-### Fase 4 — Seguridad JWT
-- [x] `backend-dev` (deepseek-v3.1): implementar login, emisión/validación de JWT y `UserDetailsService`.
-- [ ] `backend-dev`: proteger endpoints por rol (ADMIN / TECNICO / CONSULTA) en `SecurityConfig`.
-- [ ] `backend-dev`: refresh token y logout (opcional).
-- [ ] `explore`: revisar que ningún endpoint queda sin proteger.
-
-### Fase 5 — Inventario (CRUD)
-- [ ] `backend-dev`: controladores y DTOs de `Centro`, `Ubicacion`, `Equipo`, `Periferico`.
-- [ ] `backend-dev`: búsqueda y filtros (hostname, serie, etiqueta, estado, centro).
-- [ ] `frontend-dev` (qwen2.5): listados con buscador y filtros, formularios MUI + React Hook Form.
-- [ ] `backend-dev`: validación Bean Validation y manejo de duplicados.
-
-### Fase 6 — Importación de Excel
-- [ ] `backend-dev` (deepseek-v3.1): parser con Apache POI (plantilla IDI y CAPs Tarragona).
-- [ ] `backend-dev`: informe de errores/duplicados por hostname, serie y etiqueta patrimonial.
-- [ ] `frontend-dev`: pantalla de subida de archivo y vista del informe.
-- [ ] `explore`: validar normalización de fechas a `LocalDate` y casos de IP repetida.
-
-### Fase 7 — Intervenciones
-- [ ] `backend-dev`: formulario de intervención, transición de estados y cierre con `fecha_fin`.
-- [ ] `backend-dev`: checklist de tareas y de software por intervención.
-- [ ] `frontend-dev`: ficha de equipo, historial y checklist interactivos.
-- [ ] `explore`: verificar regla de inmutabilidad del historial finalizado.
-
-### Fase 8 — Frontend completo
-- [ ] `frontend-dev`: login, dashboard con KPIs, listados, fichas e historial.
-- [ ] `frontend-dev`: React Query + Axios conectados a la API con JWT.
-- [ ] `backend-dev`: CORS definitivo y ajustes de DTO según consumo real.
-
-### Fase 9 — Informes y exportación
-- [ ] `backend-dev`: dashboard (pendientes / en proceso / finalizados) y endpoints de agregación.
-- [ ] `backend-dev`: exportación de fichas e informes (Excel/PDF).
-- [ ] `frontend-dev`: gráficas y botones de exportación.
-
-### Fase 10 — Calidad y despliegue
-- [ ] `backend-dev`: tests (JUnit + Testcontainers) y limpieza de código.
-- [ ] `backend-dev`: Dockerfile y docker-compose de producción (app + BD).
-- [ ] `explore`: revisión de seguridad y copias de seguridad.
-- [ ] `frontend-dev`: build de producción y comprobación responsive.
-
-## Criterios de aceptación por tarea
-1. `.\mvnw.cmd test` en verde (backend).
-2. `npm run build` sin errores (frontend).
-3. Arranque completo con `docker compose up -d` y Flyway aplicado.
-4. Verificación manual de los endpoints en Swagger UI.
+Última actualización: **9 de agosto de 2026**. Este documento refleja el estado real del repositorio después del commit funcional `fa79c5c`.
 
 ## Completado
-- [x] Ollama 0.24.0 verificado y respondiendo en `http://localhost:11434` (API y `/v1`).
-- [x] Registrados en `~/.config/opencode/opencode.jsonc`: proveedor `ollama` con todos los modelos locales y los subagentes `backend-dev` (deepseek-coder:6.7b) y `frontend-dev` (qwen2.5:7b).
-- [x] Prueba de extremo a extremo: `deepseek-coder:6.7b` generó `CentroService.java`, se revisó, integró y `mvnw compile` pasó.
 
-> **Nota:** tras cambiar `opencode.jsonc`, hay que reiniciar opencode para que cargue la config. Los subagentes `backend-dev` y `frontend-dev` quedarán disponibles en el selector de agentes.
+### Base, seguridad e inventario
+
+- [x] Modelo PostgreSQL versionado mediante Flyway (`V1`–`V10`).
+- [x] Autenticación JWT y rutas protegidas.
+- [x] Roles `ADMIN`, `TECNICO` y `CONSULTA`.
+- [x] CRUD de centros, responsables, ubicaciones, equipos, periféricos y usuarios.
+- [x] Asignación de centros y proyectos a técnicos.
+- [x] Dashboard administrativo con indicadores y gráficas.
+
+### Importación y proyectos
+
+- [x] Importación Excel tabular e IDI con Apache POI.
+- [x] Detección de duplicados y actualización del inventario.
+- [x] Reconocimiento opcional de cabeceras mediante Ollama local con fallback determinista.
+- [x] Administración de proyectos: crear, editar, eliminar y consultar equipos.
+- [x] Selección múltiple de centros y técnicos en creación/edición, con confirmación `OK`.
+- [x] Consolidación de Tarragona como único proyecto actual.
+- [x] Consolidación de los seis centros válidos de Tarragona y asignación de Cataluña/Tarragona.
+
+### Listados y alcance por rol
+
+- [x] Filtros administrativos de equipos, incluido técnico.
+- [x] Filtros para técnicos por proyecto y provincia, además de los existentes.
+- [x] Paginación y total de registros en listados de equipos.
+- [x] Consulta del trabajo del técnico limitada a sus centros.
+- [x] Procesamiento básico de un equipo: estado, hostname nuevo, usuario, red y observaciones.
+
+## Próxima iteración recomendada
+
+### 1. Completar el flujo de intervenciones
+
+- [ ] Crear una intervención inmutable por cada actuación, en lugar de depender únicamente de `despliegue_equipos`.
+- [ ] Implementar checklist de tareas y software.
+- [ ] Registrar inicio, pausa, finalización, incidencias y técnico responsable.
+- [ ] Añadir historial completo a la ficha del equipo.
+- [ ] Definir y probar las transiciones de estado permitidas.
+
+### 2. Informes y exportación
+
+- [ ] Sustituir la pantalla provisional de Informes.
+- [ ] Exportar inventario y avance por proyecto/centro/técnico a Excel.
+- [ ] Añadir informe de pendientes, en proceso, finalizados e incidencias.
+- [ ] Evaluar exportación PDF solo después de cerrar los formatos de negocio.
+
+### 3. Configuración
+
+- [ ] Sustituir la pantalla provisional de Configuración.
+- [ ] Administrar catálogos de estados, tipos de periférico y software.
+- [ ] Definir qué opciones son globales y cuáles pertenecen a un proyecto.
+
+### 4. Calidad y producción
+
+- [ ] Ampliar la cobertura: actualmente solo existe una prueba de arranque de contexto.
+- [ ] Añadir pruebas de servicios, permisos por rol, filtros y migraciones con una base aislada.
+- [ ] Incorporar pruebas de frontend para formularios y selectores múltiples.
+- [ ] Dividir el bundle principal del frontend; Vite informa un chunk superior a 500 kB.
+- [ ] Crear Dockerfiles y un `docker-compose` de producción para frontend, backend y PostgreSQL.
+- [ ] Desactivar Swagger o protegerlo en producción.
+- [ ] Configurar secretos, copias de seguridad y restauración.
+- [ ] Revisar accesibilidad y comportamiento responsive.
+
+## Decisiones que deben conservarse
+
+1. **Proyecto:** Tarragona es el único proyecto vigente; Terres de l'Ebre no es independiente.
+2. **Centros:** solo deben existir los seis centros enumerados en el README, salvo una decisión explícita posterior del negocio.
+3. **Geografía:** los centros actuales son Cataluña / Tarragona.
+4. **Migraciones:** nunca editar una migración aplicada. Toda corrección se añade con el siguiente número Flyway.
+5. **Asignaciones:** proyectos y usuarios admiten relaciones múltiples con centros/técnicos.
+6. **Selectores múltiples:** `OK` confirma visualmente y cierra el desplegable; `Crear`/`Guardar` persiste el formulario completo.
+
+## Criterios de aceptación
+
+Antes de cerrar una iteración:
+
+1. Desde `backend`, `.\mvnw.cmd test` finaliza en verde.
+2. Desde `frontend`, `npm run build` finaliza sin errores.
+3. Desde `frontend`, `npm run lint` finaliza sin errores.
+4. Flyway valida y arranca con PostgreSQL local.
+5. Se comprueban manualmente los flujos afectados con roles Admin y Técnico.
+6. README, roadmap y continuidad se actualizan si cambian reglas o prioridades.

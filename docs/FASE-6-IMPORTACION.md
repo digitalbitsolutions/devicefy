@@ -1,5 +1,7 @@
 # Fase 6 — Importación de Excel (misiones de despliegue)
 
+> **Estado actual (9 de agosto de 2026):** la importación está implementada. Aunque este documento conserva el análisis histórico de Girona/Tortosa, la regla vigente del producto es un único proyecto **Tarragona**; Terres de l'Ebre está integrado en él. Los centros válidos y las instrucciones de continuidad están en `README.md` y `docs/CONTINUIDAD.md`.
+
 ## 1. Contexto del negocio
 
 - Devicefy gestiona **despliegues informáticos**: listas de equipos que los técnicos procesan

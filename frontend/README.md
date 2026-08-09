@@ -1,32 +1,61 @@
-# React + TypeScript + Vite
+# Frontend de Devicefy
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Cliente React/TypeScript para la administración del inventario, proyectos y trabajo técnico de Devicefy.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 y React Router.
+- TypeScript 6 y Vite 8.
+- Material UI 9.
+- TanStack React Query para estado remoto.
+- Axios para `/api`.
+- React Hook Form y Recharts.
+- Oxlint.
 
-## React Compiler
+## Desarrollo
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+El backend debe estar disponible en `http://localhost:8080`.
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+La aplicación queda disponible en `http://localhost:5173`.
+
+## Comandos
+
+```powershell
+npm run dev      # servidor Vite
+npm run build    # TypeScript + build de producción
+npm run lint     # análisis estático
+npm run preview  # sirve el build generado
+```
+
+## Rutas principales
+
+| Ruta | Uso |
+|---|---|
+| `/login` | Autenticación |
+| `/` | Dashboard |
+| `/equipos` | Inventario, filtros y paginación |
+| `/centros` | Centros y responsables |
+| `/ubicaciones` | Ubicaciones |
+| `/importacion` | Importación Excel |
+| `/despliegues` | Administración de proyectos |
+| `/despliegues/:id` | Equipos de un proyecto |
+| `/usuarios` | Usuarios y asignaciones |
+| `/informes` | Pantalla provisional |
+| `/configuracion` | Pantalla provisional |
+
+## Convenciones relevantes
+
+- Las llamadas de servidor se centralizan en `src/lib/api.ts` y se cachean con React Query.
+- Las páginas están en `src/pages`; el menú y la visibilidad por rol se gestionan en `src/components/Layout.tsx`.
+- Los selectores múltiples mantienen el desplegable abierto mientras se marcan opciones y se cierran con `OK`.
+- La persistencia definitiva de un formulario se realiza con su botón `Crear` o `Guardar`.
+- Antes de entregar cambios se deben ejecutar `npm run build` y `npm run lint`.
+
+## Pendiente técnico
+
+El build actual es correcto, pero Vite avisa que el chunk principal supera 500 kB. La siguiente optimización de frontend debería cargar las páginas por ruta mediante `lazy`/`Suspense`.
